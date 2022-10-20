@@ -57,49 +57,151 @@ impl Sudoku {
     */
     fn get_missing_numbers_in_block(&self) -> Vec<u8> {
         // get the coordinate of the currently visiting cell
-        let (x, y) = self.missing_cell_coords[self.visited_missing_cell_coords_index];
+        let (y, x) = self.missing_cell_coords[self.visited_missing_cell_coords_index];
 
         // find which block the cell's living in
-        let x_block_offset = 9 / (x + 1);
-        let y_block_offset = 9 / (y + 1);
+        let x_block_offset = (x) / 3;
+        let y_block_offset = (y) / 3;
 
         let mut missing_numbers: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-        for i in (3 * x_block_offset)..(x_block_offset + 3) {
-            for j in (3 * y_block_offset)..(y_block_offset + 3) {
-                let num = self.matrix[i as usize][j as usize];
+        for i in (3 * x_block_offset)..(3 * x_block_offset + 3) {
+            for j in (3 * y_block_offset)..(3 * y_block_offset + 3) {
+                let num = self.matrix[j as usize][i as usize];
 
-                let index = missing_numbers.iter().position(|x| *x == num).unwrap();
-                missing_numbers.remove(index);
+                let index = missing_numbers.iter().position(|x| *x == num);
+                if let Some(x) = index {
+                    missing_numbers.remove(x);
+                }
             }
         }
 
         missing_numbers
     }
 
-    fn look_for_available_numbers_in_column(&self) -> Vec<u8> {
-        // get the coordinate of the currently visiting cell
-        let (x, y) = self.missing_cell_coords[self.visited_missing_cell_coords_index];
+    fn look_for_available_numbers_in_row_and_col(&self) -> Vec<u8> {
+        let col_available_numbers = self.look_for_available_numbers_in_column();
+        let row_available_numbers = self.look_for_available_numbers_in_row();
 
+        let mut result = vec![];
 
+        // closure to check that there's value `x` in `col_available_numbers`
+        let in_cols = |x: u8| -> bool { col_available_numbers.iter().any(|f| *f == x) };
+
+        for n in row_available_numbers.iter() {
+            if in_cols(*n) {
+                result.push(*n)
+            }
+        }
+
+        result
     }
 
-    fn look_for_available_numbers_in_row(&self) -> Vec<u8> {}
+    fn look_for_available_numbers_in_column(&self) -> Vec<u8> {
+        let mut available_numbers: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+        // get the coordinate of the currently visiting cell
+        let (y, x) = self.missing_cell_coords[self.visited_missing_cell_coords_index];
+
+        for i in 0..9 {
+            if i == y {
+                continue; // skip the current cell
+            }
+
+            let cell_value = self.matrix[i as usize][x as usize];
+            if cell_value != 0 {
+                let index = available_numbers.iter().position(|x| *x == cell_value);
+
+                if let Some(x) = index {
+                    available_numbers.remove(x);
+                }
+            }
+        }
+
+        available_numbers
+    }
+
+    fn look_for_available_numbers_in_row(&self) -> Vec<u8> {
+        let mut available_numbers: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+        // get the coordinate of the currently visiting cell
+        let (y, x) = self.missing_cell_coords[self.visited_missing_cell_coords_index];
+
+        for i in 0..9 {
+            if i == x {
+                continue; // skip the current cell
+            }
+
+            let cell_value = self.matrix[y as usize][i as usize];
+            if cell_value != 0 {
+                let index = available_numbers.iter().position(|x| *x == cell_value);
+
+                if let Some(x) = index {
+                    available_numbers.remove(x);
+                }
+            }
+        }
+
+        available_numbers
+    }
 
     fn place_number(&mut self) {
+        // get current cell coordinate
+        let (curr_cell_coord_y, curr_cell_coord_x) =
+            self.missing_cell_coords[self.visited_missing_cell_coords_index];
+
+        // find missing numbers in the current block
         let missing_numbers = self.get_missing_numbers_in_block();
 
-        // scan row
-        // scan column
+        // find available numbers in row and column
+        let available_numers_in_col_and_row = self.look_for_available_numbers_in_row_and_col();
+
+        // find placable numbers
+        let mut placable_numbers: Vec<u8> = vec![];
+        for num in missing_numbers.iter() {
+            if available_numers_in_col_and_row.iter().any(|x| x == num) {
+                placable_numbers.push(*num);
+            }
+        }
+
+        // if there's nothing we can place, move backward and retry
+        if placable_numbers.len() == 0 {
+            self.matrix[curr_cell_coord_y as usize][curr_cell_coord_x as usize] = 0;
+            self.move_backward();
+            self.move_backward();
+            return;
+        }
+
+        // sort the result, so we can try bigger num when move backward
+        placable_numbers.sort();
+
+        let current_cell_number =
+            self.matrix[curr_cell_coord_y as usize][curr_cell_coord_x as usize];
+
+        for num in placable_numbers.iter() {
+            // always try a bigger num than the current cell
+            if *num > current_cell_number {
+                self.matrix[curr_cell_coord_y as usize][curr_cell_coord_x as usize] = *num;
+
+                // todo: might need to change
+                // self.move_forward();
+
+                return;
+            }
+        }
+
+        self.matrix[curr_cell_coord_y as usize][curr_cell_coord_x as usize] = 0;
+        self.move_backward();
+        self.move_backward();
     }
 
     pub fn move_forward(&mut self) -> bool {
-        if self.missing_cell_coords.len() != self.visited_missing_cell_coords_index {
-            self.visited_missing_cell_coords_index += 1;
-            return true;
+        if self.missing_cell_coords.len() - 1 == self.visited_missing_cell_coords_index {
+            return false;
         }
 
-        return false;
+        self.visited_missing_cell_coords_index += 1;
+        return true;
     }
 
     pub fn move_backward(&mut self) -> bool {
@@ -111,11 +213,21 @@ impl Sudoku {
         return false;
     }
 
-    pub fn solve(&self) {
+    pub fn solve(&mut self) {
+        let max_loop_count = 100_000u64;
+        let mut loop_count = 0u64;
 
-        // see if the current cell can place any number, place it.
-        // if the current cell cannot place any number, then backtrack 1 cell and then retry and move forward
-        // keep doing until reaching the last cell
+        self.place_number();
+
+        while self.move_forward() {
+            if loop_count >= max_loop_count {
+                break;
+            }
+
+            self.place_number();
+
+            loop_count += 1;
+        }
     }
 }
 
