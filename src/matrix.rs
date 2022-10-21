@@ -30,14 +30,6 @@ impl Sudoku {
         result
     }
 
-    pub fn print_locked_cells_coords(&self) {
-        print!("locked cells coordinates are: ");
-        for v in self.missing_cell_coords.iter() {
-            print!("({}, {}), ", v.0, v.1);
-        }
-        print!("\n");
-    }
-
     /**
     Return the missing number in the current block. Matrix is divided into 9 blocks as shown below.
 
@@ -255,29 +247,5 @@ impl Display for Sudoku {
         }
 
         write!(f, "{}", output)
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct Row([Cell; 9]);
-
-impl Row {
-    pub fn new(v: [u8; 9]) -> Row {
-        let mut cells = [Cell(0); 9];
-
-        for (i, c) in v.iter().enumerate() {
-            cells[i] = Cell::new(*c);
-        }
-
-        Row(cells)
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Cell(u8);
-
-impl Cell {
-    pub fn new(i: u8) -> Cell {
-        Cell(i)
     }
 }
